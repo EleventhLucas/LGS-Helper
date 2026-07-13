@@ -26,6 +26,7 @@ unlocker_dir="anadius/EA DLC Unlocker v2"
 
 DLL_NAME="version.dll"
 MAIN_CONFIG="config.ini"
+EA_APP_PARENT="$ea_app_parent"
 EA_APP="$ea_app_parent/EA Desktop"
 EA_APP_OLD="$ea_app_parent/StagedEADesktop/EA Desktop"
 USERS_DIR="drive_c/users"
@@ -92,13 +93,32 @@ function get_prefix_name {
   fi
 }
 
+function find_ea_app_path {
+  local path ea_app_base
+  path="$1"
+  ea_app_path=""
+
+  if [ -d "$path/$EA_APP" ]; then
+    ea_app_path="$path/$EA_APP"
+    return
+  fi
+
+  ea_app_base="$path/$EA_APP_PARENT"
+  if [ ! -d "$ea_app_base" ]; then
+    return
+  fi
+
+  ea_app_path=$(find "$ea_app_base" -maxdepth 4 -type f -name EADesktop.exe -printf '%h\n' 2>/dev/null | awk -F/ '$NF == "EA Desktop"' | sort -V | tail -n 1)
+}
+
 function check_prefix {
   local path name src
   path="$1"
   name="$2"
   src="$3"
 
-  if [ ! -d "$path/$EA_APP" ]; then
+  find_ea_app_path "$path"
+  if [ -z "$ea_app_path" ]; then
     return
   fi
 
@@ -119,6 +139,7 @@ function check_prefix {
   ALL_PREFIX_NAMES+=("$name")
   ALL_PREFIX_CONFIGS+=("$config")
   ALL_PREFIX_USERS+=("$usr")
+  ALL_PREFIX_EA_APP_PATHS+=("$ea_app_path")
 }
 
 function get_wine_prefix {
@@ -186,6 +207,7 @@ function show_prefix_menu {
       prefix_name="${ALL_PREFIX_NAMES[$tmp]}"
       prefix_config="${ALL_PREFIX_CONFIGS[$tmp]}"
       prefix_user="${ALL_PREFIX_USERS[$tmp]}"
+      prefix_ea_app_path="${ALL_PREFIX_EA_APP_PATHS[$tmp]}"
       break
     fi
   done
@@ -370,6 +392,7 @@ ALL_PREFIX_PATHS=()
 ALL_PREFIX_NAMES=()
 ALL_PREFIX_CONFIGS=()
 ALL_PREFIX_USERS=()
+ALL_PREFIX_EA_APP_PATHS=()
 
 get_wine_prefix
 get_steam_prefixes
@@ -383,12 +406,13 @@ elif [ ${#ALL_PREFIX_PATHS[@]} -eq 1 ]; then
   prefix_name="${ALL_PREFIX_NAMES[0]}"
   prefix_config="${ALL_PREFIX_CONFIGS[0]}"
   prefix_user="${ALL_PREFIX_USERS[0]}"
+  prefix_ea_app_path="${ALL_PREFIX_EA_APP_PATHS[0]}"
 else
   show_prefix_menu
 fi
 
 REG="$prefix_path/user.reg"
-DST_DLL="$prefix_path/$EA_APP/$DLL_NAME"
+DST_DLL="$prefix_ea_app_path/$DLL_NAME"
 DST_DLL2="$prefix_path/$EA_APP_OLD/$DLL_NAME"
 CONFIGS_DIR="$prefix_path/$USERS_DIR/$prefix_user/$APPDATA_DIR"
 LOGS_DIR="$prefix_path/$USERS_DIR/$prefix_user/$LOCALAPPDATA_DIR"
